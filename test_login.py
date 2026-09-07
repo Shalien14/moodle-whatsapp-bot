@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import re
+from moodle.notifications import fetch_notifications
 
 load_dotenv()
 
@@ -48,43 +49,17 @@ userid = re.search(r'"userId":(\d+)', moodle_config).group(1)
 print("User ID:", userid)
 print("Sesskey found:", bool(sesskey))
 
-print("Logged-in successfully")
-print("Status:", response.status_code)
-print("URL:", response.url)
-print("Cookies:", session.cookies.get_dict())
+# print("Logged-in successfully")
+# print("Status:", response.status_code)
+# print("URL:", response.url)
+# print("Cookies:", session.cookies.get_dict())
 
 # Fetch Moodle notifications
-service_url = f"{MOODLE_URL}/lib/ajax/service.php"
-
-payload = {
-    "index": 0,
-    "methodname": "message_popup_get_popup_notifications",
-    "args": {
-        "limit": 20,
-        "offset": 0,
-        "useridto": str(userid)
-    }
-}
-
-params = {
-    "sesskey": sesskey
-}
-
-notification_response = session.post(
-    service_url,
-    params=params,
-    json=[payload]
+notifications, unreadcount = fetch_notifications(
+    session,
+    sesskey,
+    userid
 )
-
-result = notification_response.json()
-
-if result[0]["error"]:
-    raise Exception(result[0]["exception"]["message"])
-
-data = result[0]["data"]
-
-notifications = data["notifications"]
-unreadcount = data["unreadcount"]
 
 print("Unread notifications:", unreadcount)
 print("Total notifications:", len(notifications))

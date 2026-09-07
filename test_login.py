@@ -76,6 +76,25 @@ notification_response = session.post(
     json=[payload]
 )
 
-notification_response.raise_for_status()
+result = notification_response.json()
 
-print(notification_response.json())
+if result[0]["error"]:
+    raise Exception(result[0]["exception"]["message"])
+
+data = result[0]["data"]
+
+notifications = data["notifications"]
+unreadcount = data["unreadcount"]
+
+print("Unread notifications:", unreadcount)
+print("Total notifications:", len(notifications))
+
+for notification in notifications:
+    print("--------------------")
+    print("ID:", notification["id"])
+    print("Subject:", notification["subject"])
+    print("Content:", notification["smallmessage"])
+    print("Time:", notification["timecreatedpretty"])
+    print("Read:", notification["read"])
+    print("Type:", notification["eventtype"])
+    print("URL:", notification["contexturl"])

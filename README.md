@@ -43,3 +43,13 @@ WhatsApp Bot
    │
    ▼
 User
+```
+
+## 💡 Project Origin
+
+This project originated from a real problem raised by a friend: **missing important Moodle notifications**.
+
+What started as a complaint — *“I keep missing Moodle notifications”* — eventually became the idea behind this project.
+
+**Idea / Inspiration:** Luxshagini(https://github.com/Luxshagini) 
+

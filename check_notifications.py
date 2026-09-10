@@ -1,6 +1,6 @@
 import json
 from moodle.client import MoodleClient
-
+from whatsapp.sender import send_message
 client = MoodleClient()
 client.login()
 notifications, unreadcount = client.get_notifications()
@@ -12,7 +12,7 @@ print(seen_ids)
 
 new_notifications = []
 
-for notification in notifications[0:6]:
+for notification in notifications[0:7]:
     if notification["id"] not in seen_ids:
         new_notifications.append(notification)
 
@@ -23,6 +23,15 @@ for notification in new_notifications:
     print("ID:", notification["id"])
     print("Subject:", notification["subject"])
     print("Content:", notification["smallmessage"])
+    message = (
+        "🔔 New Moodle Notification\n\n"
+        f"📚 {notification['subject']}\n\n"
+        f"{notification['smallmessage']}\n\n"
+        f"🕒 {notification['timecreatedpretty']}\n"
+        f"🔗 {notification['contexturl']}"
+    )
+
+    send_message(message)
     seen_ids.append(notification["id"])
 
 print(seen_ids)

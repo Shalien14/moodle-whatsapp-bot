@@ -1,18 +1,19 @@
-import json
 from moodle.client import MoodleClient
 from whatsapp.sender import send_message
+from storage import load_seen_ids ,save_seen_ids
+
+
 client = MoodleClient()
 client.login()
 notifications, unreadcount = client.get_notifications()
 
-with open("data/seen_notifications.json", "r") as file:
-    seen_ids = json.load(file)
+seen_ids = load_seen_ids()
 
 print(seen_ids)
 
 new_notifications = []
 
-for notification in notifications[0:7]:
+for notification in notifications[0:10]:
     if notification["id"] not in seen_ids:
         new_notifications.append(notification)
 
@@ -35,5 +36,4 @@ for notification in new_notifications:
     seen_ids.append(notification["id"])
 
 print(seen_ids)
-with open("data/seen_notifications.json", "w") as file:
-    json.dump(seen_ids, file)
+save_seen_ids(seen_ids)

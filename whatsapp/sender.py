@@ -26,5 +26,5 @@ def send_message(message):
     }
 
     response = requests.post(url, headers=headers, json=data)
-
+    response.raise_for_status()
     print(response.status_code)

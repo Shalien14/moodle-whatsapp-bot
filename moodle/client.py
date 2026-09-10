@@ -59,8 +59,21 @@ class MoodleClient:
         ).group(1)
 
     def get_notifications(self):
-        return fetch_notifications(
-            self.session,
-            self.sesskey,
-            self.userid
-        )
+
+        try:
+            return fetch_notifications(
+                self.session,
+                self.sesskey,
+                self.userid
+            )
+
+        except Exception:
+            print("Moodle session may have expired. Logging in again...")
+
+            self.login()
+
+            return fetch_notifications(
+                self.session,
+                self.sesskey,
+                self.userid
+            )

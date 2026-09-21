@@ -2,6 +2,7 @@ from moodle.client import MoodleClient
 from whatsapp.sender import send_message
 from storage import load_seen_ids ,save_seen_ids
 import time
+import sys
 
 
 client = MoodleClient()
@@ -42,4 +43,14 @@ while True:
     print(seen_ids)
     save_seen_ids(seen_ids)
     print("Waiting 10 minutes...")
-    time.sleep(600)
+    # time.sleep(600)
+
+    total = 600
+
+    for i in range(1, 61):
+        bar = "*" * i + " " * (60 - i)
+        sys.stdout.write(f"\rWaiting [{bar}]")
+        sys.stdout.flush()
+        time.sleep(10)
+
+    print("\nChecking Moodle...")

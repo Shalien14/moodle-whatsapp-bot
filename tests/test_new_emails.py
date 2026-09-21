@@ -1,5 +1,8 @@
 from webmail.client import WebmailClient
 from webmail.emails import parse_email
+from webmail.formatter import format_email_notification
+from whatsapp.sender import send_message
+
 
 from storage import (
     load_seen_email_uids,
@@ -54,6 +57,12 @@ for uid in new_uids:
     print("Subject:", email_data["subject"])
     print("Date:", email_data["date"])
 
+    message = format_email_notification(email_data)
+
+    print("\nWhatsApp message:")
+    print(message)
+
+    send_message(message)
 
 # Save all currently known UIDs
 save_seen_email_uids(uids)

@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import re
-from moodle.notifications import fetch_notifications
+
 
 load_dotenv()
 

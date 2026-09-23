@@ -44,9 +44,9 @@ def send_message(message):
         timeout=30,
     )
 
-    response.raise_for_status()
+    print("WhatsApp template response:", response.status_code)
 
-    print("WhatsApp text sent:", response.status_code)
+    response.raise_for_status()
 
     return response.json()
 
@@ -73,7 +73,7 @@ def send_template(template_name, language_code, parameters):
                     "parameters": [
                         {
                             "type": "text",
-                            "text": str(parameter),
+                            "text": " ".join(str(parameter).split()),
                         }
                         for parameter in parameters
                     ],
@@ -89,8 +89,9 @@ def send_template(template_name, language_code, parameters):
         timeout=30,
     )
 
-    response.raise_for_status()
+    print("WhatsApp template response:", response.status_code)
+    # print("WhatsApp template response body:", response.text)
 
-    print("WhatsApp template sent:", response.status_code)
+    response.raise_for_status()
 
     return response.json()

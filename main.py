@@ -1,11 +1,9 @@
 import time
 from tqdm import tqdm
-
-from webmail.client import WebmailClient
+from gmail.client import GmailClient
 from webmail.emails import parse_email
-from webmail.formatter import format_email_notification
 
-from whatsapp.sender import send_message
+from whatsapp.sender import send_template
 
 from storage import (
     load_seen_email_uids,
@@ -24,18 +22,11 @@ logger = setup_logger()
 
 def check_emails(client):
     """
-    Check UoM Webmail for new emails and send notifications.
+    Check Gmail for new emails and send notifications.
     """
 
-    client.select_inbox()
 
     uids = client.get_uids()
-
-    # Convert bytes → strings
-    uids = [
-        uid.decode()
-        for uid in uids
-    ]
 
     seen_uids = load_seen_email_uids()
 
@@ -57,9 +48,7 @@ def check_emails(client):
         logger.info("Processing new email UID: %s", uid)
 
         try:
-            raw_email = client.fetch_email(
-                uid.encode()
-            )
+            raw_email = client.fetch_email(uid)
 
             email_data = parse_email(
                 raw_email,
@@ -72,11 +61,19 @@ def check_emails(client):
                 email_data["subject"],
             )
 
-            message = format_email_notification(
-                email_data
-            )
+            preview = email_data["body"].strip()
+            if len(preview) > 500:
+                preview = preview[:497] + "..."
 
-            send_message(message)
+            send_template(
+                "new_uom_email",
+                "en",
+                [
+                    email_data["from"],
+                    email_data["subject"],
+                    preview,
+                ],
+            )
 
             # Only mark as seen after successful delivery
             seen_uids.append(uid)
@@ -115,9 +112,9 @@ def wait_for_next_check():
 
 def main():
 
-    logger.info("Starting UoM Webmail bot")
+    logger.info("Starting UoM Gmail bot")
 
-    client = WebmailClient()
+    client = GmailClient()
 
     while True:
 
@@ -125,7 +122,7 @@ def main():
 
             # Connect if necessary
             if client.mail is None:
-                logger.info("Connecting to UoM Webmail...")
+                logger.info("Connecting to Gmail...")
                 client.login()
 
             check_emails(client)
@@ -134,14 +131,12 @@ def main():
 
         except KeyboardInterrupt:
 
-            logger.info("Stopping UoM Webmail bot...")
+            logger.info("Stopping UoM Gmail bot...")
             break
 
         except Exception:
 
-            logger.exception(
-                "Webmail check failed"
-            )
+            logger.exception("Gmail check failed")
 
             logger.info(
                 "Retrying in %d seconds...",

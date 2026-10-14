@@ -1,45 +1,164 @@
-from moodle.client import MoodleClient
-from whatsapp.sender import send_message
-from storage import load_seen_ids ,save_seen_ids
 import time
+from tqdm import tqdm
+from gmail.client import GmailClient
+from webmail.emails import parse_email
+
+from whatsapp.sender import send_template
+
+from storage import (
+    load_seen_email_uids,
+    save_seen_email_uids,
+)
+
+from logger import setup_logger
 
 
-client = MoodleClient()
-client.login()
+CHECK_INTERVAL = 600       # 10 minutes
+RETRY_INTERVAL = 60        # 1 minute
 
 
-while True:
-    notifications, unreadcount = client.get_notifications()
+logger = setup_logger()
 
-    seen_ids = load_seen_ids()
 
-    print(seen_ids)
+def check_emails(client):
+    """
+    Check Gmail for new emails and send notifications.
+    """
 
-    new_notifications = []
 
-    for notification in notifications[::-1]:
-        if notification["id"] not in seen_ids:
-            new_notifications.append(notification)
+    uids = client.get_uids()
 
-    print("New notifications:", len(new_notifications))
+    seen_uids = load_seen_email_uids()
 
-    for notification in new_notifications:
-        print("--------------------")
-        print("ID:", notification["id"])
-        print("Subject:", notification["subject"])
-        print("Content:", notification["smallmessage"])
-        message = (
-            "🔔 New Moodle Notification\n\n"
-            f"📚 {notification['subject']}\n\n"
-            f"{notification['smallmessage']}\n\n"
-            f"🕒 {notification['timecreatedpretty']}\n"
-            f"🔗 {notification['contexturl']}"
-        )
+    new_uids = [
+        uid
+        for uid in uids
+        if uid not in seen_uids
+    ]
 
-        send_message(message)
-        seen_ids.append(notification["id"])
+    logger.info(
+        "Total emails: %d | Previously seen: %d | New emails: %d",
+        len(uids),
+        len(seen_uids),
+        len(new_uids),
+    )
 
-    print(seen_ids)
-    save_seen_ids(seen_ids)
-    print("Waiting 10 minutes...")
-    time.sleep(600)
+    for uid in new_uids:
+
+        logger.info("Processing new email UID: %s", uid)
+
+        try:
+            raw_email = client.fetch_email(uid)
+
+            email_data = parse_email(
+                raw_email,
+                uid
+            )
+
+            logger.info(
+                "Email: From=%s | Subject=%s",
+                email_data["from"],
+                email_data["subject"],
+            )
+
+            preview = email_data["body"].strip()
+            if len(preview) > 500:
+                preview = preview[:497] + "..."
+
+            send_template(
+                "new_uom_email",
+                "en",
+                [
+                    email_data["from"],
+                    email_data["subject"],
+                    preview,
+                ],
+            )
+
+            # Only mark as seen after successful delivery
+            seen_uids.append(uid)
+
+            logger.info(
+                "Notification delivered successfully: UID %s",
+                uid,
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed to process email UID %s",
+                uid,
+            )
+
+    save_seen_email_uids(seen_uids)
+
+
+def wait_for_next_check():
+    """
+    Wait until the next Webmail check.
+    """
+
+    logger.info(
+        "Waiting %d minutes until next check...",
+        CHECK_INTERVAL // 60,
+    )
+
+    for _ in tqdm(
+        range(CHECK_INTERVAL),
+        desc="Waiting",
+        unit="s",
+    ):
+        time.sleep(1)
+
+
+def main():
+
+    logger.info("Starting UoM Gmail bot")
+
+    client = GmailClient()
+
+    while True:
+
+        try:
+
+            # Connect if necessary
+            if client.mail is None:
+                logger.info("Connecting to Gmail...")
+                client.login()
+
+            check_emails(client)
+
+            wait_for_next_check()
+
+        except KeyboardInterrupt:
+
+            logger.info("Stopping UoM Gmail bot...")
+            break
+
+        except Exception:
+
+            logger.exception("Gmail check failed")
+
+            logger.info(
+                "Retrying in %d seconds...",
+                RETRY_INTERVAL,
+            )
+
+            # Drop the current connection.
+            # The next iteration will create a fresh one.
+            try:
+                client.logout()
+            except Exception:
+                pass
+
+            time.sleep(RETRY_INTERVAL)
+
+    try:
+        client.logout()
+    except Exception:
+        pass
+
+    logger.info("Bot stopped.")
+
+
+if __name__ == "__main__":
+    main()

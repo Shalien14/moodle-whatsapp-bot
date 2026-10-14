@@ -3,3 +3,6 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+data/seen_emails.json
+credentials.json
+token.json

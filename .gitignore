@@ -6,3 +6,31 @@ __pycache__/
 data/seen_emails.json
 credentials.json
 token.json
+
+# Environment and secrets
+.env.*
+!.env.example
+client_secret*.json
+secrets/
+*.pem
+*.key
+
+# Python environments and caches
+.venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+logs/
+
+# Private runtime state
+data/seen_emails.json
+data/seen_notifications.json
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3

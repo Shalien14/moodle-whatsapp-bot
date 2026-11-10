@@ -8,3 +8,4 @@ credentials.json
 token.json
 # Gmail notification tracking
 data/seen_emails.json
+tests/

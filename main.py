@@ -1,45 +1,101 @@
-from moodle.client import MoodleClient
-from whatsapp.sender import send_message
-from storage import load_seen_ids ,save_seen_ids
+
+import os
 import time
 
+from dotenv import load_dotenv
 
-client = MoodleClient()
-client.login()
+from moodle.client import MoodleClient
+from moodle.formatter import format_notification
+from whatsapp.sender import send_template
+from storage import load_seen_ids, save_seen_ids
+
+load_dotenv()
+
+CHECK_INTERVAL = 600
+RETRY_INTERVAL = 60
+
+TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME")
+TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "en")
 
 
-while True:
-    notifications, unreadcount = client.get_notifications()
+def check_notifications(client):
+    notifications, unread_count = client.get_notifications()
 
-    seen_ids = load_seen_ids()
+    seen_ids = set(load_seen_ids())
 
-    print(seen_ids)
+    new_notifications = [
+        notification
+        for notification in notifications[::-1]
+        if notification["id"] not in seen_ids
+    ]
 
-    new_notifications = []
-
-    for notification in notifications[::-1]:
-        if notification["id"] not in seen_ids:
-            new_notifications.append(notification)
-
+    print("Total notifications:", len(notifications))
+    print("Unread notifications:", unread_count)
     print("New notifications:", len(new_notifications))
 
     for notification in new_notifications:
-        print("--------------------")
-        print("ID:", notification["id"])
-        print("Subject:", notification["subject"])
-        print("Content:", notification["smallmessage"])
-        message = (
-            "🔔 New Moodle Notification\n\n"
-            f"📚 {notification['subject']}\n\n"
-            f"{notification['smallmessage']}\n\n"
-            f"🕒 {notification['timecreatedpretty']}\n"
-            f"🔗 {notification['contexturl']}"
-        )
+        notification_id = notification["id"]
 
-        send_message(message)
-        seen_ids.append(notification["id"])
+        try:
+            parameters = format_notification(notification)
 
-    print(seen_ids)
-    save_seen_ids(seen_ids)
-    print("Waiting 10 minutes...")
-    time.sleep(600)
+            print("--------------------")
+            print("ID:", notification_id)
+            print("Subject:", notification["subject"])
+            print("Course:", parameters[0])
+
+            result = send_template(
+                TEMPLATE_NAME,
+                TEMPLATE_LANGUAGE,
+                parameters,
+            )
+
+            # Record only after successful API acceptance.
+            seen_ids.add(notification_id)
+            save_seen_ids(list(seen_ids))
+
+            print("WhatsApp API accepted:", result.get("messages", []))
+
+        except Exception as error:
+            print(
+                f"Failed to process notification {notification_id}:",
+                error,
+            )
+
+
+def main():
+    if not TEMPLATE_NAME:
+        raise ValueError("WHATSAPP_TEMPLATE_NAME is missing from .env")
+
+    client = MoodleClient()
+
+    print("Starting UoM Moodle WhatsApp bot")
+
+    try:
+        while True:
+            try:
+                print("\nConnecting to Moodle...")
+                client.login()
+
+                check_notifications(client)
+
+                print(f"Waiting {CHECK_INTERVAL // 60} minutes...")
+                time.sleep(CHECK_INTERVAL)
+
+            except KeyboardInterrupt:
+                print("\nStopping Moodle bot...")
+                break
+
+            except Exception as error:
+                print("Moodle check failed:", error)
+                print(f"Retrying in {RETRY_INTERVAL} seconds...")
+
+                time.sleep(RETRY_INTERVAL)
+
+    finally:
+        client.session.close()
+        print("Moodle bot stopped.")
+
+
+if __name__ == "__main__":
+    main()
